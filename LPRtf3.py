@@ -5,6 +5,8 @@ import cv2
 import os
 import random
 
+tf.compat.v1.disable_eager_execution()
+
 #训练最大轮次
 num_epochs = 300
 
@@ -186,7 +188,7 @@ def small_basic_block(x,im,om):
 
 def conv(x,im,om,ksize,stride=[1,1,1,1],pad = 'SAME'):
     conv_weights = tf.Variable(
-        tf.truncated_normal([ksize[0], ksize[1], im, om],  # 5x5 filter, depth 32.
+        tf.compat.v1.truncated_normal([ksize[0], ksize[1], im, om],  # 5x5 filter, depth 32.
                             stddev=0.1,
                             seed=None, dtype=tf.float32))
     conv_biases = tf.Variable(tf.zeros([om], dtype=tf.float32))
@@ -198,19 +200,19 @@ def conv(x,im,om,ksize,stride=[1,1,1,1],pad = 'SAME'):
     return relu
 
 def get_train_model(num_channels, label_len, b, img_size):
-    inputs = tf.placeholder(
+    inputs = tf.compat.v1.placeholder(
         tf.float32,
         shape=(b, img_size[0], img_size[1], num_channels))
 
     # 定义ctc_loss需要的稀疏矩阵
-    targets = tf.sparse_placeholder(tf.int32)
+    targets = tf.compat.v1.sparse_placeholder(tf.int32)
 
     # 1维向量 序列长度 [batch_size,]
-    seq_len = tf.placeholder(tf.int32, [None])
+    seq_len = tf.compat.v1.placeholder(tf.int32, [None])
     x = inputs
 
     x = conv(x,num_channels,64,ksize=[3,3])
-    x = tf.layers.batch_normalization(x)
+    x = tf.compat.v1.layers.batch_normalization(x)
     x = tf.nn.relu(x)
     x = tf.nn.max_pool(x,
                           ksize=[1, 3, 3, 1],
@@ -218,7 +220,7 @@ def get_train_model(num_channels, label_len, b, img_size):
                           padding='SAME')
     x = small_basic_block(x,64,64)
     x2=x
-    x = tf.layers.batch_normalization(x)
+    x = tf.compat.v1.layers.batch_normalization(x)
     x = tf.nn.relu(x)
 
     x = tf.nn.max_pool(x,
@@ -226,29 +228,29 @@ def get_train_model(num_channels, label_len, b, img_size):
                           strides=[1, 2, 1, 1],
                           padding='SAME')
     x = small_basic_block(x, 64,256)
-    x = tf.layers.batch_normalization(x)
+    x = tf.compat.v1.layers.batch_normalization(x)
     x = tf.nn.relu(x)
     x = small_basic_block(x, 256, 256)
     x3 = x
-    x = tf.layers.batch_normalization(x)
+    x = tf.compat.v1.layers.batch_normalization(x)
 
     x = tf.nn.relu(x)
     x = tf.nn.max_pool(x,
                        ksize=[1, 3, 3, 1],
                        strides=[1, 2, 1, 1],
                        padding='SAME')
-    x = tf.layers.dropout(x)
+    x = tf.compat.v1.layers.dropout(x)
 
     x = conv(x, 256, 256, ksize=[4, 1])
-    x = tf.layers.dropout(x)
-    x = tf.layers.batch_normalization(x)
+    x = tf.compat.v1.layers.dropout(x)
+    x = tf.compat.v1.layers.batch_normalization(x)
     x = tf.nn.relu(x)
 
 
     x = conv(x,256,NUM_CHARS+1,ksize=[1,13],pad='SAME')
     x = tf.nn.relu(x)
     cx = tf.reduce_mean(tf.square(x))
-    x = tf.div(x,cx)
+    x = tf.compat.v1.div(x,cx)
 
     #x = tf.reduce_mean(x,axis = 2)
     #x1 = conv(inputs,num_channels,num_channels,ksize = (5,1))
@@ -259,7 +261,7 @@ def get_train_model(num_channels, label_len, b, img_size):
                        strides=[1, 4, 1, 1],
                        padding='SAME')
     cx1 = tf.reduce_mean(tf.square(x1))
-    x1 = tf.div(x1, cx1)
+    x1 = tf.compat.v1.div(x1, cx1)
 
     # x1 = tf.image.resize_images(x1, size = [18, 16], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 
@@ -268,7 +270,7 @@ def get_train_model(num_channels, label_len, b, img_size):
                         strides=[1, 4, 1, 1],
                         padding='SAME')
     cx2 = tf.reduce_mean(tf.square(x2))
-    x2 = tf.div(x2, cx2)
+    x2 = tf.compat.v1.div(x2, cx2)
 
     #x2 = tf.image.resize_images(x2, size=[18, 16], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 
@@ -277,7 +279,7 @@ def get_train_model(num_channels, label_len, b, img_size):
                         strides=[1, 2, 1, 1],
                         padding='SAME')
     cx3 = tf.reduce_mean(tf.square(x3))
-    x3 = tf.div(x3, cx3)
+    x3 = tf.compat.v1.div(x3, cx3)
 
     #x3 = tf.image.resize_images(x3, size=[18, 16], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 
@@ -324,7 +326,7 @@ def train(a):
                                  num_channels=num_channels,
                                  label_len=label_len)
     global_step = tf.Variable(0, trainable=False)
-    learning_rate = tf.train.exponential_decay(INITIAL_LEARNING_RATE,
+    learning_rate = tf.compat.v1.train.exponential_decay(INITIAL_LEARNING_RATE,
                                                global_step,
                                                DECAY_STEPS,
                                                LEARNING_RATE_DECAY_FACTOR,
@@ -332,19 +334,19 @@ def train(a):
     logits, inputs, targets, seq_len = get_train_model(num_channels, label_len,BATCH_SIZE, img_size)
     logits = tf.transpose(logits, (1, 0, 2))
     # tragets是一个稀疏矩阵
-    loss = tf.nn.ctc_loss(labels=targets, inputs=logits, sequence_length=seq_len)
+    loss = tf.compat.v1.nn.ctc_loss(labels=targets, inputs=logits, sequence_length=seq_len)
     cost = tf.reduce_mean(loss)
 
     # optimizer = tf.train.MomentumOptimizer(learning_rate=learning_rate,momentum=MOMENTUM).minimize(cost, global_step=global_step)
-    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss, global_step=global_step)
+    optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss, global_step=global_step)
 
     # 前面说的划分块之后找每块的类属概率分布，ctc_beam_search_decoder方法,是每次找最大的K个概率分布
     # 还有一种贪心策略是只找概率最大那个，也就是K=1的情况ctc_ greedy_decoder
-    decoded, log_prob = tf.nn.ctc_beam_search_decoder(logits, seq_len, merge_repeated=False)
+    decoded, log_prob = tf.compat.v1.nn.ctc_beam_search_decoder(logits, seq_len, merge_repeated=False)
 
     acc = tf.reduce_mean(tf.edit_distance(tf.cast(decoded[0], tf.int32), targets))
 
-    init = tf.global_variables_initializer()
+    init = tf.compat.v1.global_variables_initializer()
 
     def report_accuracy(decoded_list, test_targets):
         original_list = decode_sparse_tensor(test_targets)
@@ -410,9 +412,9 @@ def train(a):
             saver.save(session, "./model/LPRtf3.ckpt", global_step=steps)
         return b_cost, steps
 
-    with tf.Session() as session:
+    with tf.compat.v1.Session() as session:
         session.run(init)
-        saver = tf.train.Saver(tf.global_variables(), max_to_keep=100)
+        saver = tf.compat.v1.train.Saver(tf.compat.v1.global_variables(), max_to_keep=100)
         if a=='train':
             for curr_epoch in range(num_epochs):
                 print("Epoch.......", curr_epoch)
