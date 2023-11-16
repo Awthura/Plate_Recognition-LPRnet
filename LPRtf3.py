@@ -8,7 +8,7 @@ import random
 tf.compat.v1.disable_eager_execution()
 
 #训练最大轮次
-num_epochs = 300
+num_epochs = 100
 
 #初始化学习速率
 INITIAL_LEARNING_RATE = 1e-3
